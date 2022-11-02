@@ -12,6 +12,7 @@ MOTOR_LEFT = 10
 MOTOR_RIGHT = 11
 N_PARTS = 12
 
+
 LIDAR_ANGLE_BINS = 667
 LIDAR_SENSOR_MAX_RANGE = 2.75 # Meters
 LIDAR_ANGLE_RANGE = math.radians(240)
@@ -82,7 +83,7 @@ map = None
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
 mode = 'manual' # Part 1.1: manual mode
-# mode = 'planner'
+mode = 'planner'
 # mode = 'autonomous'
 
 
@@ -110,14 +111,29 @@ if mode == 'planner':
         :param end: A tuple of indices representing the end cell in the map
         :return: A list of tuples as a path from the given start to the given end in the given maze
         '''
+
+        
         pass
 
     # Part 2.1: Load map (map.npy) from disk and visualize it
-
+    map = np.load("map.npy")
+    plt.imshow(np.fliplr(map))
+    plt.show()
+    
 
     # Part 2.2: Compute an approximation of the “configuration space”
-
-
+    mapMask = np.zeros((360,360)) 
+    for x in range(0,len(map[0]), 1):
+        for y in range(0,len(map[1]), 1):
+            if map[x][y] == 1:
+                for row in range(y-5,y+5):
+                    for col in range(x-5,x+5):
+                        if row in range(0, 360):
+                            if col in range(0,360):
+                                mapMask[row][col] = 1
+    map = mapMask
+    plt.imshow(np.fliplr(map))
+    plt.show()
     # Part 2.3 continuation: Call path_planner
 
 
@@ -188,12 +204,29 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
         if rho < LIDAR_SENSOR_MAX_RANGE:
             # Part 1.3: visualize map gray values.
-
+            testerx, testery = int(wx*30),int(360-int(wy*30))
+            if testerx >= 360:
+                testerx = 359
+            if testerx < 0:
+                testerx = 0
+            if testery >= 360:
+                testery=359
+            if testery < 0:
+                testery = 0
+                
+            g = map[testerx][testery]
+            if g>1:
+                g=1
+            color = (g*256**2+g*256+g)*255
+            display.setColor(int(color))
+            display.drawPixel(int(wx*30),360-int(wy*30))
+            map[testerx][testery]+=.005
+            
             # You will eventually REPLACE the following 3 lines with a more robust version of the map
             # with a grayscale drawing containing more levels than just 0 and 1.
-            display.setColor(0xFFFFFF)
-            display.drawPixel(int(wx*30),360-int(wy*30))
-            map[int(wx*30)][360-int(wy*30)]=1 
+            # display.setColor(0xFFFFFF)
+            # display.drawPixel(int(wx*30),360-int(wy*30))
+            # map[int(wx*30)][360-int(wy*30)]=1 
 
     # Draw the robot's current pose on the 360x360 display
     display.setColor(int(0xFF0000))
@@ -228,8 +261,16 @@ while robot.step(timestep) != -1 and mode != 'planner':
             vR = 0
         elif key == ord('S'):
             # Part 1.4: Filter map and save to filesystem
+            # for i in range(0, 360)
+                # for j in range(0, 360)
+                    # if map[i][j] < .5:
+                        # map[i][j] = 0
             
-            np.save("map.npy",map)
+            mappingMap = map > .5
+            mappingMap = mappingMap * 1
+            print(mappingMap)
+            
+            np.save("map.npy",mappingMap)
             print("Map file saved")
         elif key == ord('L'):
             # You will not use this portion in Part 1 but here's an example for loading saved a numpy array
