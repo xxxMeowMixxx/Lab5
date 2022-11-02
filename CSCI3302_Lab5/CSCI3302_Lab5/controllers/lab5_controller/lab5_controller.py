@@ -138,7 +138,7 @@ waypoints = []
 
 if mode == 'autonomous':
     # Part 3.1: Load path from disk and visualize it
-    waypoints = [] # Replace with code to load your path #np.load('path.npy)
+    waypoints = [] # Replace with code to load your path
 
 state = 0 # use this to iterate through your path
 
