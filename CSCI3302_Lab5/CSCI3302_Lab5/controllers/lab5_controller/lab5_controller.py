@@ -96,14 +96,43 @@ mode = 'planner'
 ###################
 if mode == 'planner':
     # Part 2.3: Provide start and end in world coordinate frame and convert it to map's frame
-    start_w = None # (Pose_X, Pose_Z) in meters
-    end_w = None # (Pose_X, Pose_Z) in meters
+    start_w = None #(,) initial position # (Pose_X, Pose_Z) in meters
+    end_w = None #(10.0, 7.0) # (Pose_X, Pose_Z) in meters
 
     # Convert the start_w and end_w from the webots coordinate frame into the map frame
-    start = None # (x, y) in 360x360 map
-    end = None # (x, y) in 360x360 map
+    start = (6, 345)#(start_w[0]*30),360-start_w[1]*30) # (x, y) in 360x360 map
+    end = (130, 200)# (end_w[0]*30),360-end_w[1]*30) # (x, y) in 360x360 map
 
     # Part 2.3: Implement A* or Dijkstra's Algorithm to find a path
+    
+    # https://github.com/ryancollingwood/arcade-rabbit-herder/blob/master/pathfinding/astar.py        
+       
+    class Node:
+        """
+        A node class for A* Pathfinding
+        """
+    
+        def __init__(self, parent=None, position=None):
+            self.parent = parent
+            self.position = position
+    
+            self.g = 0
+            self.h = 0
+            self.f = 0
+    
+        def __eq__(self, other):
+            return self.position == other.position
+    
+    
+    def return_path(current_node):
+        path = []
+        current = current_node
+        while current is not None:
+            path.append(current.position)
+            current = current.parent
+        return path[::-1]  # Return reversed path
+    
+    
     def path_planner(map, start, end):
         '''
         :param map: A 2D numpy array of size 360x360 representing the world's cspace with 0 as free space and 1 as obstacle
@@ -111,14 +140,98 @@ if mode == 'planner':
         :param end: A tuple of indices representing the end cell in the map
         :return: A list of tuples as a path from the given start to the given end in the given maze
         '''
+    
+        # Create start and end node
+        start_node = Node(None, start)
+        start_node.g = start_node.h = start_node.f = 0
+        end_node = Node(None, end)
+        end_node.g = end_node.h = end_node.f = 0
+    
+        # Initialize both open and closed list
+        open_list = []
+        closed_list = []
 
+        # Add the start node
+        open_list.append(start_node)
         
-        pass
+        # what squares do we search (diagonal movement not allowed)
+        adjacent_squares = ((0, -1), (0, 1), (-1, 0), (1, 0),)
+       
+        # Loop until you find the end
+        while len(open_list) > 0:
+            # Get the current node
+            current_index = 0
+            current_node = open_list[current_index]#think your node is stuck at 0 so cahnged.
+            
+            for index, item in enumerate(open_list):
+                if item.f < current_node.f:
+                    current_node = item
+                    current_index = index
+    
+            # Pop current off open list, add to closed list
+            open_list.pop(current_index)
+            closed_list.append(current_node)
+    
+            # Found the goal
+            if current_node == end_node:
+                return return_path(current_node)
+
+            # Generate children
+            children = []
+            
+            for new_position in adjacent_squares:  # Adjacent squares
+    
+                # Get node position
+                node_position = (current_node.position[0] + new_position[0], current_node.position[1] + new_position[1])
+    
+                # Make sure within range
+                within_range_criteria = [
+                    node_position[0] > (len(map) - 1),
+                    node_position[0] < 0,
+                    node_position[1] > (len(map[len(map) - 1]) - 1),
+                    node_position[1] < 0,
+                ]
+                
+                if any(within_range_criteria):
+                    continue
+    
+                # Make sure walkable terrain
+                if map[node_position[0]][node_position[1]] == 0:
+                    continue
+    
+                # Create new node
+                new_node = Node(current_node, node_position)
+    
+                # Append
+                children.append(new_node)
+    
+            # Loop through children
+            for child in children:
+                
+                # Child is on the closed list
+                if len([closed_child for closed_child in closed_list if closed_child == child]) > 0:
+                    continue
+    
+                # Create the f, g, and h values
+                child.g = current_node.g + 1
+                child.h = ((child.position[0] - end_node.position[0]) ** 2) + \
+                          ((child.position[1] - end_node.position[1]) ** 2)
+                child.f = child.g + child.h
+    
+                # Child is already in the open list
+                if len([open_node for open_node in open_list if child == open_node and child.g > open_node.g]) > 0:
+                    continue
+    
+                # Add the child to the open list
+                open_list.append(child)
+
+        # no list found
+        return open_list
 
     # Part 2.1: Load map (map.npy) from disk and visualize it
     map = np.load("map.npy")
-    plt.imshow(np.fliplr(map))
-    plt.show()
+    # plt.imshow(np.fliplr(map))
+    # plt.show()
     
 
     # Part 2.2: Compute an approximation of the “configuration space”
@@ -134,9 +247,18 @@ if mode == 'planner':
     map = mapMask
     plt.imshow(np.fliplr(map))
     plt.show()
+    
     # Part 2.3 continuation: Call path_planner
-
-
+    if map[end[0]][end[1]] !=0 or map[start[0]][start[1]] != 0:
+        print("starting on an obstacle silly")
+    path = path_planner(map, start, end)
+    print("here is ", path)
+    
+    # display.drawPixel(path[0],path[1])
+    
+    # plt.imshow(np.fliplr(map))
+    # plt.show()
+    
     # Part 2.4: Turn paths into waypoints and save on disk as path.npy and visualize it
     waypoints = []
 
