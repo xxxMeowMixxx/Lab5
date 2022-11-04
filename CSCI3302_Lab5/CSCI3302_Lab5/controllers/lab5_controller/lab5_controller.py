@@ -11,7 +11,7 @@ AXLE_LENGTH = 0.4044 # m
 MOTOR_LEFT = 10
 MOTOR_RIGHT = 11
 N_PARTS = 12
-
+print("script start")
 
 LIDAR_ANGLE_BINS = 667
 LIDAR_SENSOR_MAX_RANGE = 2.75 # Meters
@@ -21,6 +21,7 @@ LIDAR_ANGLE_RANGE = math.radians(240)
 ##### vvv [Begin] Do Not Modify vvv #####
 
 # create the Robot instance.
+print("in tmodify")
 robot = Robot()
 # get the time step of the current world.
 timestep = int(robot.getBasicTimeStep())
@@ -39,7 +40,6 @@ for i in range(N_PARTS):
     robot_parts.append(robot.getDevice(part_names[i]))
     robot_parts[i].setPosition(float(target_pos[i]))
     robot_parts[i].setVelocity(robot_parts[i].getMaxVelocity() / 2.0)
-
 # The Tiago robot has a couple more sensors than the e-Puck
 # Some of them are mentioned below. We will use its LiDAR for Lab 5
 
@@ -79,7 +79,7 @@ lidar_offsets = np.linspace(-LIDAR_ANGLE_RANGE/2., LIDAR_ANGLE_RANGE/2., LIDAR_A
 lidar_offsets = lidar_offsets[83:len(lidar_offsets)-83] # Only keep lidar readings not blocked by robot chassis
 map = None
 ##### ^^^ [End] Do Not Modify ^^^ #####
-
+print("out of do no tmodify")
 ##################### IMPORTANT #####################
 # Set the mode here. Please change to 'autonomous' before submission
 mode = 'manual' # Part 1.1: manual mode
@@ -97,14 +97,15 @@ mode = 'planner'
 if mode == 'planner':
     print("here")
     # Part 2.3: Provide start and end in world coordinate frame and convert it to map's frame
-    start_w =(4.66,8.43) #initial position # (Pose_X, Pose_Z) in meters
-    end_w = (10.0, 7.0) # (Pose_X, Pose_Z) in meters
-    # start_w =(-4.66, -8.43) #initial position # (Pose_X, Pose_Z) in meters
-    # end_w = (-7.0, -10.0) # (Pose_X, Pose_Z) in meters
+    # start_w =(4.66,8.43) #initial position # (Pose_X, Pose_Z) in meters
+    # end_w = (10.0, 7.0) # (Pose_X, Pose_Z) in meters
+    start_w =(-8.43, -4.66) #initial position # (Pose_X, Pose_Z) in meters
+    end_w = (-7, -10.0) # (Pose_X, Pose_Z) in meters
     
     # Convert the start_w and end_w from the webots coordinate frame into the map frame
-    start = (int((start_w[0]*30)),int(360 - start_w[1]*30)) # (x, y) in 360x360 map
-    end = (int(end_w[0]*30),int(360 - end_w[1]*30)) # (x, y) in 360x360 map
+    start =  ( -int(start_w[0]*30), 360 + int(start_w[1]*30))
+    end =  ( -int(end_w[0]*30), 360 + int(end_w[1]*30))
+    print(start)
 
     # Part 2.3: Implement A* or Dijkstra's Algorithm to find a path
     
@@ -243,14 +244,16 @@ if mode == 'planner':
     for x in range(0,len(map[0]), 1):
         for y in range(0,len(map[1]), 1):
             if map[x][y] == 1:
-                for row in range(y-5,y+5):
-                    for col in range(x-5,x+5):
+                for row in range(y-8,y+8):
+                    for col in range(x-8,x+8):
                         if row in range(0, 360):
                             if col in range(0,360):
                                 mapMask[row][col] = 1
     map = mapMask
+    map = np.rot90(map)
+    map = np.flipud(map)
     #map = np.fliplr(map)
-    plt.imshow(np.fliplr(map))
+    plt.imshow(map)
     plt.show()
     
     # Part 2.3 continuation: Call path_planner
@@ -268,8 +271,14 @@ if mode == 'planner':
         # display.drawPixel(path[i-1],path[i])
     waypoints = []
     for node in path:
-        waypoints.append((node[0]/30,(node[1]/30)))
-    
+        x = -(node[0]/30)
+        y = -((360 - node[1])/30)
+        waypoints.append((x,y))
+    print (waypoints)
+    for OBJECT in path:
+         mapMask[OBJECT[0]][OBJECT[1]] = 255
+    plt.imshow(mapMask)
+    plt.show()
     # Part 2.4: Turn paths into waypoints and save on disk as path.npy and visualize it
     np.save("path.npy", waypoints)
 ######################
@@ -288,14 +297,9 @@ if mode == 'autonomous':
     # Part 3.1: Load path from disk and visualize it
     
     waypoints = [] # Replace with code to load your path
-    waypoints = np.load("path.npy")
-    for object in waypoints:
-        foo = object[0]
-        object[0]=-(object[1]-12)
-        object[1]=-(-foo)
-        
+    waypoints = np.load("path.npy")  
     waypointIndex = 1
-    goal=waypoints[1]
+    goal= abs(waypoints[1])
     path = waypoints
     state = 0
 state = 0 # use this to iterate through your path
@@ -311,7 +315,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
 
     ################ v [Begin] Do not modify v ##################
     # Ground truth pose
-    pose_y = -gps.getValues()[1]
+    pose_y = -gps.getValues()[1]-.2 #noticed the gps was off
     pose_x = -gps.getValues()[0]
 
     n = compass.getValues()
@@ -424,22 +428,25 @@ while robot.step(timestep) != -1 and mode != 'planner':
         #STEP 1: Calculate the error
             # STEP 2.1: Calculate error with respect to current and goal position
         #position error
-        PossError = math.sqrt((pose_x - goal[0] )**2 + ( pose_y - goal[1])**2)
+        PossError = math.sqrt((goal[0] - pose_x )**2 + ( goal[1] - pose_y)**2)
         print(pose_x)
+        print(pose_y)
         print(PossError)
         print(goal)
         #bearing error
-        bearError = -(math.atan2((goal[1] - pose_y), (goal[0] - pose_x)) + pose_theta)
-        
+        bearError = (math.atan2(goal[1]-pose_y,goal[0]-pose_x)) - (pose_theta + math.pi)
+        print(bearError)
         # PossError = math.sqrt((goal[0] - pose_x)**2 + (goal[1] - pose_y)**2)
         # #bearing error
         # bearError = math.atan2((goal[1] - pose_y), (goal[0] - pose_x)) - pose_theta
         if bearError < -3.1415: 
             bearError += 6.283 
+        if bearError > 6.283:
+            bearError -= 6.283
         # Heading error:
-        gain =.20
+        gain =.25
         
-        if(abs(PossError)<.2):
+        if(abs(PossError)<gain):
             waypointIndex = waypointIndex + 1
             print(waypointIndex)
             if(waypointIndex >= len(waypoints)):
@@ -447,7 +454,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
                 robot_parts[MOTOR_RIGHT].setVelocity(0)
                 exit(0)
             else:
-                goal = waypoints[waypointIndex]
+                goal = abs(waypoints[waypointIndex])
             
         
         pass
@@ -455,7 +462,7 @@ while robot.step(timestep) != -1 and mode != 'planner':
         # ##STEP 2.2: Feedback Controller
     
         dX = PossError
-        dTheta = 50 * bearError
+        dTheta = 70 * bearError
       
         pass
         
